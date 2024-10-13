@@ -195,7 +195,7 @@ Contributions are welcome! Please follow these steps to contribute:
 
 ## License
 
-This project is licensed under the [MIT License] (LICENSE) haga.
+This project is licensed under the [MIT License] (LICENSE).
 
 ## Authors
 Hagay Ladany, Dr. Yosef Maruvka.
