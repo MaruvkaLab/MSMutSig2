@@ -50,17 +50,17 @@ It employs various statistical models to determine significant driver mutations.
 
 ### Running the Analysis
 
-You can run the analysis using the provided example script or directly via the command line.
+You can run the analysis using the provided run_analysis script or directly via the command line.
 
 Input:
 The required input is a CSV file containing the columns: PATTERN, REFERENCE_REPEATS, COUNTS, and hgnc_symbol.
 
-#### 1. **Using the Example Script**
+#### 1. **Using the run_analysis Script**
 
-The `examples/run_analysis.R` script demonstrates how to execute the analysis with predefined parameters.
+The `run_analysis/run_analysis.R` script demonstrates how to execute the analysis with predefined parameters.
 
 ```bash
-Rscript examples/run_analysis.R
+Rscript run_analysis/run_analysis.R
 ```
 
 **Parameters to Modify**:
