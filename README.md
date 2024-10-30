@@ -82,7 +82,7 @@ Rscript scripts/analysis.R --input data/your_data.csv --output results --models 
 - `-i` or `--input`: **(Required)** Path to the input CSV file containing mutation data.
 - `-o` or `--output`: Path to the output directory. Default is `results`.
 - `-m` or `--models`: Comma-separated list of models to apply. Options include `exponential`, `gaussian`, `weibull`, `lognormal`. Default is `lognormal,exponential`.
-- `-t` or `--threshold`: **(Optional)** minimum motif sample size. The default is `45`.
+- `-t` or `--threshold`: **(Optional)** minimum motif sample size. The default is `45`. should align with dataset size, smaller datasets may need to reduce this value.
 
 **Examples**:
 
