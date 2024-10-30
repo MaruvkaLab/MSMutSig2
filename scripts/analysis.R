@@ -1,7 +1,7 @@
 # scripts/analysis.R
 
 # ============================================
-# MSMuSig2 - Comprehensive Driver Mutation Analysis and Normality Checks
+# MSMuSig2 - Comprehensive Driver Mutation Analysis
 # ============================================
 
 # Set CRAN mirror to avoid interactive prompts during package installation
@@ -103,6 +103,16 @@ for (model in selected_models) {
 
 # Define the plot_pvalues Function
 plot_pvalues <- function(pvalues, significant, gene_names, model_name, output_path) {
+  # Ensure pvalues and gene_names have the same length
+  if (length(pvalues) != length(gene_names)) {
+    warning(paste("Mismatch in lengths: pvalues =", length(pvalues), 
+                  "gene_names =", length(gene_names), ". Truncating to the minimum length."))
+    min_len <- min(length(pvalues), length(gene_names))
+    pvalues <- pvalues[1:min_len]
+    gene_names <- gene_names[1:min_len]
+    significant <- significant[1:min_len]
+  }
+  
   # Create a data frame and sort by p-values
   df <- data.frame(
     pvalue = pvalues,
@@ -245,18 +255,18 @@ for (MOTIF in selected_motifs) {
         }
         if (model == "gaussian") {
           temp_plot_data$Gaussian <- dnorm(temp_plot_data$x, 
-                                           mean = model_fits$gaussian$estimate["mean"], 
-                                           sd = model_fits$gaussian$estimate["sd"])
+                                          mean = model_fits$gaussian$estimate["mean"], 
+                                          sd = model_fits$gaussian$estimate["sd"])
         }
         if (model == "weibull") {
           temp_plot_data$Weibull <- dweibull(temp_plot_data$x, 
-                                             shape = model_fits$weibull$estimate["shape"], 
-                                             scale = model_fits$weibull$estimate["scale"])
+                                            shape = model_fits$weibull$estimate["shape"], 
+                                            scale = model_fits$weibull$estimate["scale"])
         }
         if (model == "lognormal") {
           temp_plot_data$LogNormal <- dlnorm(temp_plot_data$x, 
-                                             meanlog = model_fits$lognormal$estimate["meanlog"], 
-                                             sdlog = model_fits$lognormal$estimate["sdlog"])
+                                            meanlog = model_fits$lognormal$estimate["meanlog"], 
+                                            sdlog = model_fits$lognormal$estimate["sdlog"])
         }
       }
     }
@@ -264,7 +274,7 @@ for (MOTIF in selected_motifs) {
     # Calculate scaling factor to match histogram density
     hist_max <- max(ggplot_build(ggplot() + 
                                    geom_histogram(aes(x = temp_x_data, y = after_stat(density)), 
-                                                  bins = ceiling(length(temp_x_data) / 3)) + 
+                                                 bins = ceiling(length(temp_x_data) / 3)) + 
                                    theme_minimal())$data[[1]]$density)
     density_values <- sapply(selected_models, function(model) {
       if (model == "exponential") return(max(temp_plot_data$Exponential, na.rm = TRUE))
@@ -373,7 +383,7 @@ for (MOTIF in selected_motifs) {
         }
         if (model == "gaussian") {
           p_vals <- pnorm(x_data, mean = model_fits$gaussian$estimate["mean"], 
-                          sd = model_fits$gaussian$estimate["sd"], lower.tail = FALSE)
+                         sd = model_fits$gaussian$estimate["sd"], lower.tail = FALSE)
         }
         if (model == "weibull") {
           p_vals <- pweibull(x_data, shape = model_fits$weibull$estimate["shape"], 
@@ -381,12 +391,27 @@ for (MOTIF in selected_motifs) {
         }
         if (model == "lognormal") {
           p_vals <- plnorm(x_data, meanlog = model_fits$lognormal$estimate["meanlog"], 
-                           sdlog = model_fits$lognormal$estimate["sdlog"], lower.tail = FALSE)
+                          sdlog = model_fits$lognormal$estimate["sdlog"], lower.tail = FALSE)
         }
+        # Remove NAs and Infinities
+        valid_indices <- !is.na(p_vals) & is.finite(p_vals)
+        p_vals <- p_vals[valid_indices]
+        gene_names <- df$hgnc_symbol[x_data > 0][valid_indices]
+        
+        # Ensure alignment before storing
+        if (length(p_vals) != length(gene_names)) {
+          warning(paste("Mismatch in lengths for model", model, 
+                        ": p_vals =", length(p_vals), 
+                        "gene_names =", length(gene_names), ". Truncating to the minimum length."))
+          min_len <- min(length(p_vals), length(gene_names))
+          p_vals <- p_vals[1:min_len]
+          gene_names <- gene_names[1:min_len]
+        }
+        
         # Store p-values and hgnc_symbols per model
         all_p_values_per_model[[model]] <- c(all_p_values_per_model[[model]], p_vals)
         all_original_p_values_per_model[[model]] <- c(all_original_p_values_per_model[[model]], p_vals)
-        all_hgnc_symbols_per_model[[model]] <- c(all_hgnc_symbols_per_model[[model]], df$hgnc_symbol)
+        all_hgnc_symbols_per_model[[model]] <- c(all_hgnc_symbols_per_model[[model]], gene_names)
       }
     }
   }
@@ -412,6 +437,17 @@ for (model in selected_models) {
     )
     
     cat(paste0("QQ plot for model ", model, " saved to QQplot_", model, ".svg\n"))
+    
+    # Ensure p_vals and hgnc_symbols have the same length
+    if (length(p_vals) != length(hgnc_symbols)) {
+      warning(paste("Mismatch in lengths when creating all_results_df for model", model, 
+                    ": p_vals =", length(p_vals), 
+                    "hgnc_symbols =", length(hgnc_symbols), ". Truncating to the minimum length."))
+      min_len <- min(length(p_vals), length(hgnc_symbols))
+      p_vals <- p_vals[1:min_len]
+      hgnc_symbols <- hgnc_symbols[1:min_len]
+      adjusted_p_values <- adjusted_p_values[1:min_len]
+    }
     
     # Create a Data Frame for All Results
     all_results_df <- data.frame(
@@ -479,6 +515,17 @@ for (model in selected_models) {
   hgnc_symbols <- all_hgnc_symbols_per_model[[model]]
   
   if (length(p_vals) > 0) {
+    # Ensure p_vals and hgnc_symbols have the same length
+    if (length(p_vals) != length(hgnc_symbols)) {
+      warning(paste("Mismatch in lengths for model", model, 
+                    ": p_vals =", length(p_vals), 
+                    "hgnc_symbols =", length(hgnc_symbols), ". Truncating to the minimum length."))
+      min_len <- min(length(p_vals), length(hgnc_symbols))
+      p_vals <- p_vals[1:min_len]
+      hgnc_symbols <- hgnc_symbols[1:min_len]
+      adjusted_p_vals <- adjusted_p_vals[1:min_len]
+    }
+    
     significant_df <- data.frame(
       hgnc_symbol = hgnc_symbols,
       p_value = p_vals,
