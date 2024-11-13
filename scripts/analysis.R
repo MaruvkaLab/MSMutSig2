@@ -1,7 +1,7 @@
 # scripts/analysis.R
 
 # ============================================
-# MSMuSig2 - Comprehensive Driver Mutation Analysis
+# MSMuSig2 - Comprehensive Driver Mutation Analysis and Normality Checks
 # ============================================
 
 # Set CRAN mirror to avoid interactive prompts during package installation
@@ -10,7 +10,7 @@ options(repos = c(CRAN = "https://cloud.r-project.org"))
 # Load Necessary Packages
 required_packages <- c("magrittr", "minpack.lm", "ggplot2", "gridExtra", "MASS", 
                        "dplyr", "data.table", "fitdistrplus", "survival", 
-                       "car", "ggrepel", "ggpubr", "optparse")
+                       "car", "ggrepel", "ggpubr", "optparse", "metap")
 installed_packages <- rownames(installed.packages())
 for (pkg in required_packages) {
   if (!pkg %in% installed_packages) {
@@ -67,7 +67,7 @@ qqplot_paths <- paste0(qqplot_dir, "/QQplot_", selected_models, ".svg")
 mutation_data <- read.csv(opt$input)
 
 # Ensure Required Columns Exist
-required_columns <- c("PATTERN", "REFERENCE_REPEATS", "COUNTS", "hgnc_symbol")
+required_columns <- c("PATTERN", "REFERENCE_REPEATS", "COUNTS", "hgnc_symbol", "CHR", "START")
 missing_cols <- setdiff(required_columns, names(mutation_data))
 if (length(missing_cols) > 0) {
   stop(paste("Missing required columns:", paste(missing_cols, collapse = ", ")))
@@ -93,12 +93,18 @@ rez.allMotifs <- list()
 all_p_values_per_model <- list()
 all_hgnc_symbols_per_model <- list()
 all_original_p_values_per_model <- list()
+all_motifs_per_model <- list()
+all_chr_per_model <- list()
+all_start_per_model <- list()
 
 # Initialize Lists for Each Model
 for (model in selected_models) {
   all_p_values_per_model[[model]] <- c()
   all_original_p_values_per_model[[model]] <- c()
   all_hgnc_symbols_per_model[[model]] <- c()
+  all_motifs_per_model[[model]] <- c()
+  all_chr_per_model[[model]] <- c()
+  all_start_per_model[[model]] <- c()
 }
 
 # Define the plot_pvalues Function
@@ -373,7 +379,7 @@ for (MOTIF in selected_motifs) {
     plot = p1
   )
   
-  # Collect P-Values and HGNCSymbols for Each Model
+  # Collect P-Values, HGNCSymbols, Motifs, CHR, and START for Each Model
   for (model in selected_models) {
     if (!is.null(model_fits[[model]])) {
       if (model %in% c("weibull", "lognormal", "exponential", "gaussian")) {
@@ -397,21 +403,34 @@ for (MOTIF in selected_motifs) {
         valid_indices <- !is.na(p_vals) & is.finite(p_vals)
         p_vals <- p_vals[valid_indices]
         gene_names <- df$hgnc_symbol[x_data > 0][valid_indices]
+        motifs <- rep(MOTIF, length(p_vals))
+        chrs <- df$CHR[x_data > 0][valid_indices]
+        starts <- df$START[x_data > 0][valid_indices]
         
         # Ensure alignment before storing
-        if (length(p_vals) != length(gene_names)) {
+        lengths <- c(length(p_vals), length(gene_names), length(motifs), length(chrs), length(starts))
+        if (length(unique(lengths)) != 1) {
           warning(paste("Mismatch in lengths for model", model, 
-                        ": p_vals =", length(p_vals), 
-                        "gene_names =", length(gene_names), ". Truncating to the minimum length."))
-          min_len <- min(length(p_vals), length(gene_names))
+                        ": p_vals =", lengths[1], 
+                        "gene_names =", lengths[2], 
+                        "motifs =", lengths[3],
+                        "chrs =", lengths[4],
+                        "starts =", lengths[5], ". Truncating to the minimum length."))
+          min_len <- min(lengths)
           p_vals <- p_vals[1:min_len]
           gene_names <- gene_names[1:min_len]
+          motifs <- motifs[1:min_len]
+          chrs <- chrs[1:min_len]
+          starts <- starts[1:min_len]
         }
         
-        # Store p-values and hgnc_symbols per model
+        # Store p-values, hgnc_symbols, motifs, CHR, and START per model
         all_p_values_per_model[[model]] <- c(all_p_values_per_model[[model]], p_vals)
         all_original_p_values_per_model[[model]] <- c(all_original_p_values_per_model[[model]], p_vals)
         all_hgnc_symbols_per_model[[model]] <- c(all_hgnc_symbols_per_model[[model]], gene_names)
+        all_motifs_per_model[[model]] <- c(all_motifs_per_model[[model]], motifs)
+        all_chr_per_model[[model]] <- c(all_chr_per_model[[model]], chrs)
+        all_start_per_model[[model]] <- c(all_start_per_model[[model]], starts)
       }
     }
   }
@@ -421,6 +440,9 @@ for (MOTIF in selected_motifs) {
 for (model in selected_models) {
   p_vals <- all_p_values_per_model[[model]]
   hgnc_symbols <- all_hgnc_symbols_per_model[[model]]
+  motifs <- all_motifs_per_model[[model]]
+  chrs <- all_chr_per_model[[model]]
+  starts <- all_start_per_model[[model]]
   original_p_vals <- all_original_p_values_per_model[[model]]
   
   if (length(p_vals) > 0) {
@@ -438,20 +460,30 @@ for (model in selected_models) {
     
     cat(paste0("QQ plot for model ", model, " saved to QQplot_", model, ".svg\n"))
     
-    # Ensure p_vals and hgnc_symbols have the same length
-    if (length(p_vals) != length(hgnc_symbols)) {
+    # Ensure all vectors have the same length
+    lengths <- c(length(p_vals), length(hgnc_symbols), length(motifs), length(chrs), length(starts))
+    if (length(unique(lengths)) != 1) {
       warning(paste("Mismatch in lengths when creating all_results_df for model", model, 
-                    ": p_vals =", length(p_vals), 
-                    "hgnc_symbols =", length(hgnc_symbols), ". Truncating to the minimum length."))
-      min_len <- min(length(p_vals), length(hgnc_symbols))
+                    ": p_vals =", lengths[1], 
+                    "hgnc_symbols =", lengths[2], 
+                    "motifs =", lengths[3],
+                    "chrs =", lengths[4],
+                    "starts =", lengths[5], ". Truncating to the minimum length."))
+      min_len <- min(lengths)
       p_vals <- p_vals[1:min_len]
       hgnc_symbols <- hgnc_symbols[1:min_len]
       adjusted_p_values <- adjusted_p_values[1:min_len]
+      motifs <- motifs[1:min_len]
+      chrs <- chrs[1:min_len]
+      starts <- starts[1:min_len]
     }
     
     # Create a Data Frame for All Results
     all_results_df <- data.frame(
       hgnc_symbol = hgnc_symbols,
+      CHR = chrs,
+      START = starts,
+      motif = motifs,
       p_value = p_vals,
       adjusted_p_value = adjusted_p_values
     )
@@ -459,6 +491,48 @@ for (model in selected_models) {
     # Save All Results to <model>.csv
     write.csv(all_results_df, paste0(output_dir, "/", model, ".csv"), row.names = FALSE)
     cat(paste0("All results for model ", model, " saved to ", model, ".csv\n"))
+    
+    # Output Summary of Significant Mutations for Each Model (Motif-Level)
+    significant_df <- all_results_df[all_results_df$adjusted_p_value < 0.1, ]
+    
+    if (nrow(significant_df) > 0) {
+      write.csv(significant_df, paste0(output_dir, "/Significant_", model, ".csv"), row.names = FALSE)
+      cat(paste0("Significant mutations for model ", model, " saved to Significant_", model, ".csv\n"))
+    } else {
+      cat(paste0("No significant mutations detected for model ", model, ".\n"))
+    }
+    
+    # Aggregate p-values per gene
+    aggregated_results <- all_results_df %>%
+      group_by(hgnc_symbol, CHR, START) %>%
+      summarize(
+        num_p_values = n(),
+        combined_p_value = if (num_p_values > 1) {
+          sumlog(p_value)$p  # Using Fisher's method
+        } else {
+          p_value  # Use the single p-value directly
+        },
+        .groups = 'drop'
+      )
+    
+    # Adjust combined p-values
+    aggregated_results$adjusted_combined_p_value <- p.adjust(aggregated_results$combined_p_value, method = "BH")
+    
+    # Save Aggregated Results
+    write.csv(aggregated_results, paste0(output_dir, "/", model, "_aggregated.csv"), row.names = FALSE)
+    cat(paste0("Aggregated results for model ", model, " saved to ", model, "_aggregated.csv\n"))
+    
+    # Identify Significant Genes
+    significant_genes <- aggregated_results %>%
+      filter(adjusted_combined_p_value < 0.1)
+    
+    # Save Significant Genes
+    if (nrow(significant_genes) > 0) {
+      write.csv(significant_genes, paste0(output_dir, "/Significant_", model, "_aggregated.csv"), row.names = FALSE)
+      cat(paste0("Significant genes for model ", model, " saved to Significant_", model, "_aggregated.csv\n"))
+    } else {
+      cat(paste0("No significant genes detected for model ", model, " after aggregation.\n"))
+    }
   } else {
     cat(paste0("No p-values available for model: ", model, ". QQ plot not generated.\n"))
   }
@@ -506,42 +580,6 @@ if (length(rez.allMotifs) > 0) {
   cat("Comparison table saved to Indels_Models_fit.csv\n")
 } else {
   cat("No comparison tables to merge.\n")
-}
-
-# Output Summary of Significant Mutations for Each Model
-for (model in selected_models) {
-  p_vals <- all_original_p_values_per_model[[model]]
-  adjusted_p_vals <- p.adjust(p_vals, method = "BH")
-  hgnc_symbols <- all_hgnc_symbols_per_model[[model]]
-  
-  if (length(p_vals) > 0) {
-    # Ensure p_vals and hgnc_symbols have the same length
-    if (length(p_vals) != length(hgnc_symbols)) {
-      warning(paste("Mismatch in lengths for model", model, 
-                    ": p_vals =", length(p_vals), 
-                    "hgnc_symbols =", length(hgnc_symbols), ". Truncating to the minimum length."))
-      min_len <- min(length(p_vals), length(hgnc_symbols))
-      p_vals <- p_vals[1:min_len]
-      hgnc_symbols <- hgnc_symbols[1:min_len]
-      adjusted_p_vals <- adjusted_p_vals[1:min_len]
-    }
-    
-    significant_df <- data.frame(
-      hgnc_symbol = hgnc_symbols,
-      p_value = p_vals,
-      adjusted_p_value = adjusted_p_vals
-    )
-    significant_df <- significant_df[significant_df$adjusted_p_value < 0.1, ]
-    
-    if (nrow(significant_df) > 0) {
-      write.csv(significant_df, paste0(output_dir, "/Significant_", model, ".csv"), row.names = FALSE)
-      cat(paste0("Significant mutations for model ", model, " saved to Significant_", model, ".csv\n"))
-    } else {
-      cat(paste0("No significant mutations detected for model ", model, ".\n"))
-    }
-  } else {
-    cat(paste0("No p-values available for model: ", model, ". Significant mutations file not created.\n"))
-  }
 }
 
 # Print Final Summary
