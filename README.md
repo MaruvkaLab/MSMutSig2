@@ -4,16 +4,16 @@
 
 ## Table of Contents
 
-- Features
-- Installation
-- Usage
-- Understanding the Output
-- Repository Structure
-- Methods
-- Contributing
-- License
-- Authors
-- Contact
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Understanding the Output]) (#Understanding-the-Output)
+- [Repository Structure](#repository-structure)
+- [Methods](#methods)
+- [Contributing](#contributing)
+- [License](#license)
+- [Authors](#authors)
+- [Contact](#contact)
 
 ## Features
 
