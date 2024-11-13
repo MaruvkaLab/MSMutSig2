@@ -7,7 +7,7 @@
 - [Features](#features)
 - [Installation](#installation)
 - [Usage](#usage)
-- [Understanding the Output]) (#Understanding-the-Output)
+- [Understanding the Output](#Understanding-the-Output)
 - [Repository Structure](#repository-structure)
 - [Methods](#methods)
 - [Contributing](#contributing)
