@@ -45,7 +45,7 @@ install.packages("renv")
 renv::init()
 renv::restore()
 ```
-- Method 2. manually install (better to specify the exact version [listed in the .lockfile]
+- Method 2. manually install (better to specify the exact version [listed in the .lockfile]).
 
    ```
    install.packages(c("magrittr", "minpack.lm", "ggplot2", "gridExtra", "MASS",
