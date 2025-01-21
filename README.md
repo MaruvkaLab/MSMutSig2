@@ -35,7 +35,16 @@
    ```
 
 2. **Install Required R Packages**
+- You can use `renv` for dependency management:
 
+```R
+# Install renv if not already installed
+install.packages("renv")
+
+# Initialize renv and restore dependencies
+renv::init()
+renv::restore()
+```
    Ensure you have the necessary R packages installed. You can install them using the following command in R:
 
    ```
