@@ -35,7 +35,7 @@
    ```
 
 2. **Install Required R Packages**
-- You can use `renv` for dependency management:
+- Method 1. You can use `renv` for dependency management:
 
 ```R
 # Install renv if not already installed
@@ -45,7 +45,7 @@ install.packages("renv")
 renv::init()
 renv::restore()
 ```
-   Ensure you have the necessary R packages installed. You can install them using the following command in R:
+- Method 2. manually install (better to specify the exact version [listed in the .lockfile]
 
    ```
    install.packages(c("magrittr", "minpack.lm", "ggplot2", "gridExtra", "MASS",
