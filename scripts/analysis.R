@@ -78,10 +78,12 @@ MOTIFS <- mutation_data[, c("PATTERN", "REFERENCE_REPEATS")] %>% .[!duplicated(.
 
 # Fix: Order MOTIFS and Calculate Occurrence
 MOTIFS <- MOTIFS[order(MOTIFS$PATTERN, MOTIFS$REFERENCE_REPEATS), ]
-MOTIFS$occurence <- as.vector(table(paste0(mutation_data$PATTERN, "-", mutation_data$REFERENCE_REPEATS)))
+rownames(MOTIFS) <- paste0(MOTIFS$PATTERN, "-", MOTIFS$REFERENCE_REPEATS)
+tmp<-as.matrix(table(paste0(mutation_data$PATTERN, "-", mutation_data$REFERENCE_REPEATS)))
+MOTIFS[rownames(tmp), "occurence"] <- tmp[, 1]
 
 # Select Motifs Based on Occurrence Threshold
-selected_motifs_df <- MOTIFS %>% filter(occurence > threshold_val)
+selected_motifs_df <- MOTIFS[MOTIFS$occurence > threshold_val,]
 selected_motifs <- paste0(selected_motifs_df$PATTERN, "-", selected_motifs_df$REFERENCE_REPEATS)
 
 # Inform User About Selected Motifs
@@ -135,7 +137,7 @@ plot_pvalues <- function(pvalues, significant, gene_names, model_name, output_pa
   
   # Generate the QQ plot
   qq_plot <- ggplot(df, aes(x = -log10(expected), y = -log10(pvalue))) +
-    geom_point(aes(color = significant), size = 1) +
+    geom_point(aes(color = significant), size = 1.5) +
     scale_color_manual(values = c("FALSE" = "black", "TRUE" = "red")) +
     geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
     coord_fixed(ratio = 1, xlim = c(0, max_val), ylim = c(0, max_val)) +
@@ -145,16 +147,17 @@ plot_pvalues <- function(pvalues, significant, gene_names, model_name, output_pa
       vjust = -1, 
       size = 3
     ) +
-    theme_minimal() +
+    theme_bw() +
     labs(
       title = paste0("QQ Plot of Adjusted P-Values - ", toupper(substr(model_name, 1,1)), substr(model_name, 2, nchar(model_name))),
       x = "Expected -log10(p)",
       y = "Observed -log10(p)",
       color = "Significant"
-    )
+    )+
+  theme(legend.position = "none")
   
   # Save the QQ Plot
-  ggsave(filename = output_path, plot = qq_plot, width = 8, height = 6)
+  ggsave(filename = output_path, plot = qq_plot, width = 6, height = 4)
 }
 
 # Function to Fit Models and Return Fit Objects
@@ -261,18 +264,18 @@ for (MOTIF in selected_motifs) {
         }
         if (model == "gaussian") {
           temp_plot_data$Gaussian <- dnorm(temp_plot_data$x, 
-                                          mean = model_fits$gaussian$estimate["mean"], 
-                                          sd = model_fits$gaussian$estimate["sd"])
+                                           mean = model_fits$gaussian$estimate["mean"], 
+                                           sd = model_fits$gaussian$estimate["sd"])
         }
         if (model == "weibull") {
           temp_plot_data$Weibull <- dweibull(temp_plot_data$x, 
-                                            shape = model_fits$weibull$estimate["shape"], 
-                                            scale = model_fits$weibull$estimate["scale"])
+                                             shape = model_fits$weibull$estimate["shape"], 
+                                             scale = model_fits$weibull$estimate["scale"])
         }
         if (model == "lognormal") {
           temp_plot_data$LogNormal <- dlnorm(temp_plot_data$x, 
-                                            meanlog = model_fits$lognormal$estimate["meanlog"], 
-                                            sdlog = model_fits$lognormal$estimate["sdlog"])
+                                             meanlog = model_fits$lognormal$estimate["meanlog"], 
+                                             sdlog = model_fits$lognormal$estimate["sdlog"])
         }
       }
     }
@@ -280,7 +283,7 @@ for (MOTIF in selected_motifs) {
     # Calculate scaling factor to match histogram density
     hist_max <- max(ggplot_build(ggplot() + 
                                    geom_histogram(aes(x = temp_x_data, y = after_stat(density)), 
-                                                 bins = ceiling(length(temp_x_data) / 3)) + 
+                                                  bins = ceiling(length(temp_x_data) / 3)) + 
                                    theme_minimal())$data[[1]]$density)
     density_values <- sapply(selected_models, function(model) {
       if (model == "exponential") return(max(temp_plot_data$Exponential, na.rm = TRUE))
@@ -389,7 +392,7 @@ for (MOTIF in selected_motifs) {
         }
         if (model == "gaussian") {
           p_vals <- pnorm(x_data, mean = model_fits$gaussian$estimate["mean"], 
-                         sd = model_fits$gaussian$estimate["sd"], lower.tail = FALSE)
+                          sd = model_fits$gaussian$estimate["sd"], lower.tail = FALSE)
         }
         if (model == "weibull") {
           p_vals <- pweibull(x_data, shape = model_fits$weibull$estimate["shape"], 
@@ -397,7 +400,7 @@ for (MOTIF in selected_motifs) {
         }
         if (model == "lognormal") {
           p_vals <- plnorm(x_data, meanlog = model_fits$lognormal$estimate["meanlog"], 
-                          sdlog = model_fits$lognormal$estimate["sdlog"], lower.tail = FALSE)
+                           sdlog = model_fits$lognormal$estimate["sdlog"], lower.tail = FALSE)
         }
         # Remove NAs and Infinities
         valid_indices <- !is.na(p_vals) & is.finite(p_vals)
